@@ -1,0 +1,16 @@
+{{extend 'layout.html'}}
+<h3>Suggestion</h3>
+<table>
+	<tr>
+		<th><pre>Suggested BY</pre></th>
+		<th></th>
+		<th><pre>Question Paper Topic</pre></th>
+	</tr>
+{{for i in r:}}
+<tr>
+	<td><h4 style="text-align:center">{{=(A(i['auth_user'].username,_href=URL("show_profile",args=i['auth_user'].id)))}}</h4></td>
+	<td><h4>:</h4></td>
+	<td><h4><div align="center">{{=(A(i['qptable'].qpname,_href=URL("display",args=i['qptable'].id)))}}</div></h4></td>
+</tr>
+{{pass}}
+</table>

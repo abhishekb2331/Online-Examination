@@ -1,0 +1,38 @@
+{{extend 'layout.html'}}
+<h2>{{=l['username']}}'s Profile</h2> 
+<div align="right">
+<img width="300px" src="{{=URL('download', args=images)}}" />
+<h2>{{=l['username']}}</h2></div>
+<table>
+	<tr>
+		<td><h4>Name</h4></td>
+		<td><h4>:</h4></td>
+		<td><h4>{{=l['first_name']}} {{=l['last_name']}}</h4></td>
+	</tr>
+	<tr>
+		
+		<td><h4>Email</h4></td>
+		<td><h4>:</h4></td>
+		<td><h4>{{=l['email']}}</h4></td>
+	</tr>
+	<tr>
+		<td><h4>Profession</h4></td>
+		<td><h4>:</h4></td>
+		<td><h4>{{=l['profession']}}</h4></td>
+	</tr>
+	<tr>
+		<td><h4>Qualification</h4></td>
+		<td><h4>:</h4></td>
+		<td><h4>{{=l['qualification']}}</h4></td>
+	</tr>
+	<tr>
+		<td><h4>Phone Number</h4></td>
+		<td><h4>:</h4></td>
+		<td><h4>{{=l['phonenumber']}}</h4></td>
+	</tr>
+	<tr>
+		<td><h4>About {{=l['username']}}</h4></td>
+		<td><h4>:</h4></td>
+		<td><h4>{{=l['about_you']}}</h4></td>
+	</tr>
+</table>

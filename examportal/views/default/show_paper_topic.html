@@ -1,0 +1,6 @@
+{{extend 'layout.html'}}
+<ul>
+{{for i in q:}}
+{{=LI(A(i.qpname,_href=URL("display",args=i.id)))}}
+{{pass}}
+</ul>

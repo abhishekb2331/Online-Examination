@@ -1,0 +1,405 @@
+(dp1
+S'output'
+p2
+S"<type 'exceptions.AttributeError'> 'NoneType' object has no attribute 'id'"
+p3
+sS'layer'
+p4
+S'/home/abhishek/web2py/applications/ittest/controllers/default.py'
+p5
+sS'code'
+p6
+S'# -*- coding: utf-8 -*-\n# this file is released under public domain and you can use without limitations\n\n#########################################################################\n## This is a samples controller\n## - index is the default action of any application\n## - user is required for authentication and authorization\n## - download is for downloading files uploaded in the db (does streaming)\n## - call exposes all registered services (none by default)\n#########################################################################\n\n\n@auth.requires_login()\ndef index():\n    """\n    example action using the internationalization operator T and flash\n    rendered by views/default/index.html or views/generic.html\n\n    if you need a simple wiki simple replace the two lines below with:\n    return auth.wiki()\n    """\n    response.flash = T("Welcome to Online Examination Portal!")\n    k=db(db.auth_membership.user_id==auth.user.id).select(db.auth_membership.group_id)\n    print k[0].group_id\n    if k[0].group_id==1:\n\t    redirect(URL(\'faculty_home\'))\n    else:\n\t    redirect(URL(\'student_home\'))\n    return dict(message=T(\'Hello World\'))\ndef faculty_home():\n\treturn dict(message=T(\'Welcome faculty\'))\ndef student_home():\n\treturn dict(message=T(\'Welcome Student\'))\n\ndef user():\n    """\n    exposes:\n    http://..../[app]/default/user/login\n    http://..../[app]/default/user/logout\n    http://..../[app]/default/user/register\n    http://..../[app]/default/user/profile\n    http://..../[app]/default/user/retrieve_password\n    http://..../[app]/default/user/change_password\n    use @auth.requires_login()\n        @auth.requires_membership(\'group name\')\n        @auth.requires_permission(\'read\',\'table name\',record_id)\n    to decorate functions that need access control\n    """\n    auth.settings.register_onaccept=__add_user_membership\n    return dict(form=auth())\ndef __add_user_membership(form):\n\tgroup=db(db.auth_group.role==form.vars.profession).select().first()\n\tprint group,form.vars\n\tuser_id=form.vars.id\n\tauth.add_membership(group.id,user_id)\n\ndef download():\n    """\n    allows downloading of uploaded files\n    http://..../[app]/default/download/[filename]\n    """\n    return response.download(request, db)\n\n\ndef call():\n    """\n    exposes services. for example:\n    http://..../[app]/default/call/jsonrpc\n    decorate with @services.jsonrpc the functions to expose\n    supports xml, json, xmlrpc, jsonrpc, amfrpc, rss, csv\n    """\n    return service()\n\n\n@auth.requires_signature()\ndef data():\n    """\n    http://..../[app]/default/data/tables\n    http://..../[app]/default/data/create/[table]\n    http://..../[app]/default/data/read/[table]/[id]\n    http://..../[app]/default/data/update/[table]/[id]\n    http://..../[app]/default/data/delete/[table]/[id]\n    http://..../[app]/default/data/select/[table]\n    http://..../[app]/default/data/search/[table]\n    but URLs must be signed, i.e. linked with\n      A(\'table\',_href=URL(\'data/tables\',user_signature=True))\n    or with the signed load operator\n      LOAD(\'default\',\'data.load\',args=\'tables\',ajax=True,user_signature=True)\n    """\n    return dict(form=crud())\ndef reg():\n\tform=SQLFORM(db.auth_user)\n\tif(form.accepts(request,session)):\n\t\tform.process()\n\t\tif(form.vars.profession==\'Faculty\'):\n\t\t\tauth.add_membership(1,form.vars.id)\n\t\telse:\n\t\t\tauth.add_membership(2,form.vars.id)\n\t\tresponse.flash=\'Form Accepted\'\n\telif(form.errors):\n\t\tresponse.flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.flash=\'Fill Form\'\n\treturn dict(form=form)\n@auth.requires_login()\n@auth.requires_membership(\'Faculty\')\ndef make_paper():\n\t#if(db.auth_user.profession==\'Students\'):\n\t\t#redirect(URL(\'student_home\'))\n#\telse:\n\tform=SQLFORM(db.qptable)\n\t#print form\n\tform.vars.facultyid=auth.user.id\n\tif(form.accepts(request,session)):\n\t\t#print \'lo1\'\n\t\tform.process()\n\t\tsession.k=int(form.vars.no_of_question)\n\t\tsession.l=1\n\t\tsession.q=form.vars.id\n\t\tprint \'hi\'\n\t\tredirect(URL(r=request,f=\'set_paper\'))\n\telif(form.errors):\n\t\tresponse.flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.flash=\'Fill Form\'\n\treturn dict(form=form)\ndef correctoptions():\n\t#print \'kt\'\n\t#form=SQLFORM(db.correctoptions)\n\t#print \'loi\'\n\t#print form\n\tsession.option=db(db.qoptions.qname==session.q1).select(db.qoptions.qoptions)\n\t#print session.option.qoptions\n\tr=[]\n\tq=len(session.option)\n\tfor i in range(q):\n\t\tr.append(session.option[i].qoptions)\n\tprint r\n\tform=SQLFORM.factory(\n\t\t\tField(\'qtable\',db.qtable,requires=IS_IN_DB(db,\'qtable.id\',\'qtable.question\')),\n\t\t\tField(\'name\',\'string\',requires=IS_IN_SET(r,multiple=True),widget=SQLFORM.widgets.checkboxes.widget))\n\tform.vars.qtable=session.q1\n\t#print form\n\t#form.vars.name._requires=IS_IN_SET(range(1,(session.opt)+1),multiple=True)\n\tif(form.accepts(request,session)):\n\t\t#print \'it worked\'\n\t\t#form.process()\n\t\tdb.correctoptions.insert(qtable=form.vars.qtable,name=form.vars.name)\n\t\t#print \'it qorked\'\n\t\tredirect(URL(r=request,f=\'set_paper\'))\n\telif(form.errors):\n\t\tresponse.Flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.Flash=\'Fill Correct Options\'\n\treturn dict(form=form)\ndef set_paper():\n\tprint \'yoy\'\n\tk=int(session.k)\n\tl=int(session.l)\n\tif(l<=k):\n\t\tq=session.q\n\t\tform=SQLFORM(db.qtable)\n\t\tform.vars.qnumber=l\n\t\tform.vars.qptableid=q\n\t\tif(form.accepts(request,session)):\n\t\t\tform.process()\n\t\t\tsession.opt=form.vars.number_of_option\n\t\t\tsession.op=1\n\t\t\t(session.l)+=1\n\t\t\tl=session.l\n\t\t\tprint \'king\'\n\t\t\tif(l<=k+1):\n\t\t\t\tprint \'king2\'\n\t\t\t\tsession.r=1\n\t\t\t\t(session.q1)=form.vars.id\n\t\t\t\tsession.j=int(form.vars.number_of_option)\n\t\t\t\tredirect(URL(r=request,f=\'set_option\'))\n\t\t\telse:\n\t\t\t\tredirect(URL(\'faculty_home\'))\n\t\telif(form.errors):\n\t\t\tresponse.flash=\'Form Has Errors\'\n\t\telse:\n\t\t\tresponse.flash=\'Fill Form\'\n\t\treturn dict(form=form)\n\telse:\n\t\tredirect(URL(\'faculty_home\'))\ndef set_option():\n\tj=int(session.j)\n\tr=int(session.r)\n\tq1=session.q1\n\tk=int(session.k)\n\tl=int(session.l)\n\tq=session.q\n\tsession.option=[]\n\tform=SQLFORM(db.qoptions)\n\tform.vars.qoption_num=r\n\tform.vars.qname=q1\n\tif(form.accepts(request,session)):\n\t\tform.process()\n\t\t#print form.vars.qoptions\n\t\t#(session.option).append(form.vars.qoptions)\n\t\t#print session.option\n\t\tsession.r+=1\n\t\tr=session.r\n\t\tif(r<=j):\n\t\t\tredirect(URL(r=request,f=\'set_option\'))\n\t\telse:\n\t\t\tredirect(URL(r=request,f=\'correctoptions\'))\n\telif(form.errors):\n\t\tresponse.flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.flash=\'Fill Form\'\n\treturn dict(form=form)\ndef search():\n\tform=SQLFORM.factory(\n\t\t\tField(\'search\',\'string\',requires=IS_IN_SET([\'Faculty\',\'topic\',\'both\'])))\n\tif(form.accepts(request,session)):\n\t\t\tif(form.vars.search==\'Faculty\'):\n\t\t\t\tredirect(URL(\'search_faculty\'))\n\t\t\telif(form.vars.search==\'topic\'):\n\t\t\t\tredirect(URL(\'search_topic\'))\n\t\t\telif(form.vars.search==\'both\'):\n\t\t\t\tredirect(URL(\'search_both\'))\n\telif(form.errors):\n\t\tresponse.flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.flash=\'Fill Form\'\n\treturn dict(form=form)\ndef search_faculty():\n\tform=SQLFORM.factory(\n\t\t\tField(\'faculty\',db.auth_user,requires=IS_IN_DB(db(db.auth_user.profession.like(\'Faculty\')),\'auth_user.id\',\'auth_user.username\')))\n\tif(form.accepts(request,session)):\n\t\tsession.searchfaculty=form.vars.faculty\n\t\tredirect(URL(\'show_paper_faculty\'))\n\telif(form.errors):\n\t\tresponse.flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.flash=\'Fill Form\'\n\treturn dict(form=form)\ndef search_both():\n\tform1=SQLFORM.factory(\n\t\t\tField(\'faculty\',db.auth_user,requires=IS_IN_DB(db(db.auth_user.profession.like(\'Faculty\')),\'auth_user.id\',\'auth_user.username\')))\n\tif(form1.accepts(request,session)):\n\t\tq=form1.vars.faculty\n\t\tr=db(db.qptable.facultyid==q).select(db.qptable.topic)\n\t\tsession.l=[]\n\t\tfor i in r:\n\t\t\tsession.l.append(i.topic)\n\t\tredirect(URL(\'searchtopicfaculty\'))\n\t#\tform2=SQLFORM.factory(\n\t#\t\t\tField(\'topic\',requires=IS_IN_SET(l)))\n\t#\tiif(form2.accepts(request,session)):\n\t#\t\tsession.searchtopic=form.vars.topic\n\t#\t\tredirect(URL(\'show_paper_topic\'))\n\t#\telif form2.errors :\n\t#\t\tresponse.flash=\'Form Has Errors\'\n\t#\treturn dict(form2=form2)\n\telif form1.errors :\n\t\tresponse.flash=\'Form Has Errors\'\n\treturn dict(form1=form1)\ndef searchtopicfaculty():\n\t\tform2=SQLFORM.factory(\n\t\t\t\tField(\'topic\',requires=IS_IN_SET(session.l)))\n\t\tif(form2.accepts(request,session)):\n\t\t\tsession.searchtopic=form2.vars.topic\n\t\t\tredirect(URL(\'show_paper_topic\'))\n\t\telif form2.errors :\n\t\t\tresponse.flash=\'Form Has Errors\'\n\t\treturn dict(form2=form2)\ndef search_topic():\n\tr=db().select(db.qptable.topic)\n\tprint \'rtrt\'\n\tprint r[1].topic\n\tl=len(r)\n\tp=[]\n\tfor i in range(l):\n\t\tp.append(r[i].topic)\n\n\tp=set(p)\n\tform=SQLFORM.factory(\n\t\t\tField(\'topic\',db.qptable,requires=IS_IN_SET(p)))\n\tif(form.accepts(request,session)):\n\t\tsession.searchtopic=form.vars.topic\n\t\tredirect(URL(\'show_paper_topic\'))\n\telif (form.errors):\n\t\tresponse.flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.flash=\'Fill Form\'\n\treturn dict(form=form)\ndef show_paper_topic():\n\tq=db(db.qptable.topic==session.searchtopic).select(db.qptable.qpname,db.qptable.id,db.qptable.no_of_question)\n\treturn dict(q=q)\ndef show_paper_faculty():\n\tq=db(db.qptable.facultyid==session.searchfaculty).select(db.qptable.qpname,db.qptable.id,db.qptable.no_of_question)\n\tprint q\n\treturn dict(q=q)\nsession.cnt=0\ndef display():\n\tsession.cnt=1\n\tprint session.cnt\n\tq=request.args(0)\n\tsession.i=(db(db.qtable.qptableid==q).select(db.qtable.ALL))\n\tsession.no_of_question=len(session.i)\n\t#print session.i,len(session.i)\n\tredirect(URL(r=request,f=\'display_paper/%s\' %session.cnt))\n#def records_ans():\n#\tprint \'i am here\'\n\t#form=SQLFORM(db.answer)\n\t#form.vars.studentid=auth.user.id\n\t#form.vars.qptableid=(session.i[(session.cnt)-1]).qptableid\n\t#form.vars.qnum=(session.i[(session.cnt)-1].qnumber)\n\t#form.vars.optionselected=session.tmp\n\t#form.vars.marks=(session.i[session.cnt-1]).negativemarks\n\t#if(form.accepts(request,session)):\n\t#form.process()\n#\tprint session.cnt,\'lol\'\n#\tdb.answer.insert(studentid=auth.user.id,qptableid=(session.i[int(session.cnt)-1]).qptableid,qnum=session.i[int(session.cnt)-1].qnumber,optionselected=session.tmp,marks=session.i[int(session.cnt)-1].negativemarks)\n#\tl=int(session.cnt)\n#\tl+=1\n#\tprint l,\'i u \'\n#\tredirect(URL(\'display_paper/%d\' %(l)))\n\t#elif(form.errors):\n\t#\tresponse.flash=\'hi\'\n\t#return dict(form=form)\ndef display_paper():\n\t#session.cnt+=1\n\t#q=request.args(0)\n\tsession.cnt=request.args(0)\n\tprint \'uy1\',session.cnt\n\tif(int(session.cnt)>int(session.no_of_question)):\n\t\t#redirect(URL(\'student_home\'))\n\t\tredirect(URL(r=request,f=\'result/%s\' %(int(session.i[0].qptableid))))\n\tk=session.i[int(session.cnt)-1]\n\tans=db(db.qoptions.qname==k.id).select(db.qoptions.qoptions)\n\tr=[]\n\tl=len(ans)\n\ty=db((db.answer.studentid==auth.user.id)&(db.answer.qptableid==k.qptableid)).select(db.answer.qnum)\n\tlists=[]\n\tfor i in y:\n\t\tlists.append(i.qnum)\n\tprint lists,\'i am i am\'\n\tfor i in range(l):\n\t\tr.append(ans[i].qoptions)\n\tprint r\n\tform=SQLFORM.factory(\n\t\t\tField(\'question\',\'string\',default=k.question,readable=True,writable=False),\n\t\t\tField(\'option\',\'string\',requires=IS_IN_SET(r,multiple=True),widget=SQLFORM.widgets.checkboxes.widget)\n\t\t\t)\n\tprint \'hjgj\'\n\tif(form.accepts(request,session)):\n\t\tprint \'gt1;\'\n\t\ti=form.vars.option\n\t\ti=\'|\'.join(i)\n\t\ti=\'|\'+i+\'|\'\n\t\tsession.tmp=i\n\t\tredirect(URL(r=request,f=\'records_ans/%s\' %session.cnt))\n\telif form.errors:\n\t\tresponse.flash=\'Form has errors\'\n\t#print form.vars.option\n\t#submit=form.element(\'input\',_type=\'submit\')\n\t#submit[\'_style\']=\'display:none;\'\n\tif(int(session.cnt)<int(session.no_of_question)):\n\t\tform.add_button(\'next\',URL(\'display_paper/%d\' %(int(session.cnt)+1)))\n\tif(int(session.cnt)>=2):\n\t\tform.add_button(\'prev\',URL(\'display_paper/%d\' %(int(session.cnt)-1)))\n\tform.add_button(\'end exam\',URL(\'result/%s\' %(int(session.i[0].qptableid))))\n\t#form.add_button(\'submit1\',URL(\'record_ans/%s\' %(i)))\n\t#session.i=(db(db.qtable.qptableid==q).select(db.qtable.ALL))\n\tprint \'ou\'\n\tprint session.i\n\tnofq=session.no_of_question\n\treturn dict(form=form,nofq=nofq,lists=lists)\n#def record_ans():\n#\tprint \'i am here\'\n#\tform=SQLFORM(db.answer)\n#\tform.vars.studentid=auth.user.id\n#\tform.vars.qptableid=(session.i[(session.cnt)-1]).qptableid\n#\tform.vars.qnum=(session.i[(session.cnt)-1].qnumber)\n#\tform.vars.optionselected=request.args(0)\n#\tform.vars.marks=(session.i[session.cnt-1]).negativemarks\n#\tif(form.accepts(request,session)):\n#\t\tform.process()\n#\t\tredirect(URL(\'display_paper/%d\' %(session.cnt+1)))\n#\telif(form.errors):\n#\t\tresponse.flash=\'hi\'\n#\treturn dict(form=form)\ndef result():\n\tl=request.args(0)\n\tr=db((db.answer.studentid==auth.user.id) & (db.answer.qptableid==l)).select(db.answer.marks)\n\tans=0\n\tprint r\n\tfor i in r:\n\t\tans=ans+ int(i.marks)\n\t\tprint \'#\'\n\tprint ans,\'i did it\'\n\tdb.marks.insert(studentid=auth.user.id,qptableid=l,marks=ans)\n\treturn locals()\ndef records_ans():\n\tprint \'i am here\'\n\t#form=SQLFORM(db.answer)\n\t#form.vars.studentid=auth.user.id\n\t#form.vars.qptableid=(session.i[(session.cnt)-1]).qptableid\n\t#form.vars.qnum=(session.i[(session.cnt)-1].qnumber)\n\t#form.vars.optionselected=session.tmp\n\t#form.vars.marks=(session.i[session.cnt-1]).negativemarks\n\t#if(form.accepts(request,session)):\n\t#form.process()\n\tsession.cnt=request.args(0)\n\tprint session.cnt,\'lol\'\n\t#db(db.answer.studentid=auth.user.id & db.answer.qptableid=()).update()\n\tcorrect_ans=db(db.correctoptions.qtable==session.i[int(session.cnt)-1].id).select(db.correctoptions.name)\n\tprint correct_ans\n\tl=(correct_ans[0]).name\n\t#l=l[:-1]\n\tprint l,\'oip\'\n\t#session.tmp+=\'\\n\'\n\tif(l==session.tmp):\n\t\tmarking=session.i[int(session.cnt)-1].marks_for_each_question\n\telse:\n\t\tmarking=-int(session.i[int(session.cnt)-1].negativemarks)\n\tprint correct_ans,marking,\'iu\'\n\td=db((db.answer.studentid==auth.user.id )& (db.answer.qptableid==(session.i[int(session.cnt)-1]).qptableid )& (db.answer.qnum==session.i[int(session.cnt)-1].qnumber )& (db.answer.optionselected==session.tmp)).select(db.answer.marks)\n\tprint \'hello\',d,\'yo\'\n\tif(len(d)==0):\n\t\tdb.answer.insert(studentid=auth.user.id,qptableid=(session.i[int(session.cnt)-1]).qptableid,qnum=session.i[int(session.cnt)-1].qnumber,optionselected=session.tmp,marks=marking)\n\telse:\n\t\tdb((db.answer.studentid==auth.user.id )& (db.answer.qptableid==(session.i[int(session.cnt)-1]).qptableid )& (db.answer.qnum==session.i[int(session.cnt)-1].qnumber )& (db.answer.optionselected==session.tmp)).update(marks=marking)\n\tl=int(session.cnt)\n\tl+=1\n\tprint l,\'i u \'\n\tredirect(URL(\'display_paper/%d\' %(l)))\n\t#elif(form.errors):\n\t#\tresponse.flash=\'hi\'\n\t#return dict(form=form)\ndef suggest():\n\t#form=SQLFORM(db.sugesstion)\n\tform=SQLFORM.factory(\n\t\t\tField(\'sender\',readable=True,writable=False,default=auth.user.username),\n\t\t\tField(\'qptableid\',db.qptable,requires=IS_IN_DB(db,\'qptable.id\',\'qptable.qpname\')),\n\t\t\tField(\'reciever\',db.auth_user,requires=IS_IN_DB(db(db.auth_user.profession.like(\'Student\')),\'auth_user.id\',\'auth_user.username\')))\n\t#form.vars.sender=auth.user.id\n\tif(form.accepts(request,session)):\n\t\tdb.sugesstion.insert(sender=auth.user.id,qptableid=form.vars.qptableid,reciever=form.vars.reciever)\n\telif form.errors:\n\t\tresponse.flash=\'Form Has Errors\'\n\telse:\n\t\tresponse.flash=\'Fill Form\'\n\treturn dict(form=form)\ndef suggestions():\n\tr=db((db.sugesstion.reciever==auth.user.id)&(db.sugesstion.qptableid==db.qptable.id) &(db.sugesstion.sender==db.auth_user.id)).select(db.auth_user.username,db.auth_user.id,db.qptable.qpname,db.qptable.id)\n\treturn dict(r=r)\ndef show_profile():\n\tq=request.args(0) or auth.user.id\n\tl=db(db.auth_user.id==q).select(db.auth_user.ALL).first()\n\timages=l.image\n\treturn dict(images=images,l=l)\ndef download():\n\treturn response.download(request,db)\n\nresponse._vars=response._caller(display_paper)\n'
+p7
+sS'snapshot'
+p8
+(dp9
+S'exception'
+p10
+(dp11
+S'__hash__'
+p12
+S"<method-wrapper '__hash__' of exceptions.AttributeError object>"
+p13
+sS'__setattr__'
+p14
+S"<method-wrapper '__setattr__' of exceptions.AttributeError object>"
+p15
+sS'__reduce_ex__'
+p16
+S'<built-in method __reduce_ex__ of exceptions.AttributeError object>'
+p17
+sS'__getslice__'
+p18
+S"<method-wrapper '__getslice__' of exceptions.AttributeError object>"
+p19
+sS'__getitem__'
+p20
+S"<method-wrapper '__getitem__' of exceptions.AttributeError object>"
+p21
+sS'__setstate__'
+p22
+S'<built-in method __setstate__ of exceptions.AttributeError object>'
+p23
+sS'__reduce__'
+p24
+S'<built-in method __reduce__ of exceptions.AttributeError object>'
+p25
+sS'__str__'
+p26
+S"<method-wrapper '__str__' of exceptions.AttributeError object>"
+p27
+sS'__format__'
+p28
+S'<built-in method __format__ of exceptions.AttributeError object>'
+p29
+sS'__getattribute__'
+p30
+S"<method-wrapper '__getattribute__' of exceptions.AttributeError object>"
+p31
+sS'__class__'
+p32
+S"<type 'exceptions.AttributeError'>"
+p33
+sS'__unicode__'
+p34
+S'<built-in method __unicode__ of exceptions.AttributeError object>'
+p35
+sS'__delattr__'
+p36
+S"<method-wrapper '__delattr__' of exceptions.AttributeError object>"
+p37
+sS'__subclasshook__'
+p38
+S'<built-in method __subclasshook__ of type object>'
+p39
+sS'__repr__'
+p40
+S"<method-wrapper '__repr__' of exceptions.AttributeError object>"
+p41
+sS'args'
+p42
+S'("\'NoneType\' object has no attribute \'id\'",)'
+p43
+sS'__dict__'
+p44
+S'{}'
+p45
+sS'__sizeof__'
+p46
+S'<built-in method __sizeof__ of exceptions.AttributeError object>'
+p47
+sS'__doc__'
+p48
+S"'Attribute not found.'"
+p49
+sS'__init__'
+p50
+S"<method-wrapper '__init__' of exceptions.AttributeError object>"
+p51
+sS'__new__'
+p52
+S'<built-in method __new__ of type object>'
+p53
+ssS'evalue'
+p54
+S"'NoneType' object has no attribute 'id'"
+p55
+sS'request'
+p56
+cgluon.html
+XML_unpickle
+p57
+(S'sc\x82\x00\x00<div><table><tr><td style="font-weight:bold;vertical-align:top">ajax</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">application</td><td valign="top">:</td><td><div>ittest</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">args</td><td valign="top">:</td><td><div><table><tr><td><div>1</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">body</td><td valign="top">:</td><td><div>&lt;cStringIO.StringO object at 0xaf03d3a0&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">cid</td><td valign="top">:</td><td><div>None</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">client</td><td valign="top">:</td><td><div>127.0.0.1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">controller</td><td valign="top">:</td><td><div>default</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">cookies</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">session_id_admin</td><td valign="top">:</td><td><div>127.0.0.1-cdb2e97a-abb2-4365-ac0f-3b83db881305<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_it</td><td valign="top">:</td><td><div>127.0.0.1-6cc40b59-09a1-4442-a43b-5a025fb86aee<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_ittest</td><td valign="top">:</td><td><div>127.0.0.1-aaa78335-4629-4e30-b6f2-e9cd7dc34730<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_ittest3</td><td valign="top">:</td><td><div>127.0.0.1-62b43052-ddbd-4338-9be0-66bfd3017a52<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_itws_project</td><td valign="top">:</td><td><div>127.0.0.1-66f9e680-f928-4ce8-934c-34faec6625a3<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_music</td><td valign="top">:</td><td><div>127.0.0.1-c45434fc-60e3-4971-9790-d7302b13402f<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_quiz</td><td valign="top">:</td><td><div>127.0.0.1-001af907-d3f7-4cca-ad1f-324df1352ea6<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_test</td><td valign="top">:</td><td><div>127.0.0.1-9e4d8fe0-7efd-47c4-aa43-21b508770f8f<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_test1</td><td valign="top">:</td><td><div>127.0.0.1-3e0b66f8-dd6f-46b7-aa3b-fbe7990448a3<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_testg</td><td valign="top">:</td><td><div>127.0.0.1-ea273346-3693-4a24-b670-0b4da27abed9<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_testimage</td><td valign="top">:</td><td><div>127.0.0.1-3e1daab8-91d8-4dcc-bb19-a9877540978f<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_welcome</td><td valign="top">:</td><td><div>127.0.0.1-611473d6-ae3f-4a45-9a99-2d75d05fdd37<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_yo</td><td valign="top">:</td><td><div>127.0.0.1-4d9e9841-34e3-43d8-aeb4-c79f5d44ede3<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">env</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">app_folders</td><td valign="top">:</td><td><div>set([&#x27;/home/abhishek/web2py/applications/ittest/&#x27;, &#x27;/home/abhishek/web2py/applications/admin/&#x27;, &#x27;/home/abhishek/web2py/applications/welcome/&#x27;])</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">applications_parent</td><td valign="top">:</td><td><div>/home/abhishek/web2py</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">cmd_args</td><td valign="top">:</td><td><div><table></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">cmd_options</td><td valign="top">:</td><td><div>&lt;Values at 0x901d20c: {&#x27;verbose&#x27;: False, &#x27;ip&#x27;: &#x27;127.0.0.1&#x27;, &#x27;with_scheduler&#x27;: False, &#x27;ips&#x27;: [], &#x27;shutdown_timeout&#x27;: 5, &#x27;taskbar&#x27;: False, &#x27;port&#x27;: 8000, &#x27;maxthreads&#x27;: None, &#x27;softcron&#x27;: False, &#x27;server_name&#x27;: &#x27;abhishek&#x27;, &#x27;bpython&#x27;: False, &#x27;nogui&#x27;: False, &#x27;pid_filename&#x27;: &#x27;httpserver.pid&#x27;, &#x27;extcron&#x27;: False, &#x27;runcron&#x27;: False, &#x27;run_system_tests&#x27;: False, &#x27;test&#x27;: None, &#x27;folder&#x27;: &#x27;/home/abhishek/web2py&#x27;, &#x27;config&#x27;: &#x27;&#x27;, &#x27;import_models&#x27;: False, &#x27;winservice&#x27;: &#x27;&#x27;, &#x27;shell&#x27;: None, &#x27;run&#x27;: &#x27;&#x27;, &#x27;log_filename&#x27;: &#x27;httpserver.log&#x27;, &#x27;debuglevel&#x27;: 30, &#x27;args&#x27;: [&#x27;&#x27;], &#x27;socket_timeout&#x27;: 5, &#x27;ssl_ca_certificate&#x27;: None, &#x27;scheduler&#x27;: None, &#x27;profiler_filename&#x27;: None, &#x27;ssl_private_key&#x27;: &#x27;&#x27;, &#x27;scheduler_groups&#x27;: None, &#x27;password&#x27;: &#x27;1234&#x27;, &#x27;request_queue_size&#x27;: 5, &#x27;ssl_certificate&#x27;: &#x27;&#x27;, &#x27;cronjob&#x27;: False, &#x27;numthreads&#x27;: None, &#x27;quiet&#x27;: False, &#x27;interfaces&#x27;: None, &#x27;minthreads&#x27;: None, &#x27;timeout&#x27;: 10, &#x27;plain&#x27;: False, &#x27;nobanner&#x27;: False}&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">db_sessions</td><td valign="top">:</td><td><div>set([])</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">debugging</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">gluon_parent</td><td valign="top">:</td><td><div>/home/abhishek/web2py</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_accept</td><td valign="top">:</td><td><div>text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_accept_encoding</td><td valign="top">:</td><td><div>gzip, deflate</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_accept_language</td><td valign="top">:</td><td><div>en-US,en;q=0.5</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_connection</td><td valign="top">:</td><td><div>keep-alive</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_cookie</td><td valign="top">:</td><td><div>session_id_welcome=127.0.0.1-611473d6-ae3f-4a45-9a99-2d75d05fdd37; session_id_admin=127.0.0.1-cdb2e97a-abb2-4365-ac0f-3b83db881305; session_id_yo=127.0.0.1-4d9e9841-34e3-43d8-aeb4-c79f5d44ede3; session_id_test1=127.0.0.1-3e0b66f8-dd6f-46b7-aa3b-fbe7990448a3; session_id_music=127.0.0.1-c45434fc-60e3-4971-9790-d7302b13402f; session_id_test=127.0.0.1-9e4d8fe0-7efd-47c4-aa43-21b508770f8f; session_id_testimage=127.0.0.1-3e1daab8-91d8-4dcc-bb19-a9877540978f; session_id_itws_project=127.0.0.1-66f9e680-f928-4ce8-934c-34faec6625a3; session_id_testg=127.0.0.1-ea273346-3693-4a24-b670-0b4da27abed9; session_id_quiz=127.0.0.1-001af907-d3f7-4cca-ad1f-324df1352ea6; session_id_it=127.0.0.1-6cc40b59-09a1-4442-a43b-5a025fb86aee; session_id_ittest=127.0.0.1-aaa78335-4629-4e30-b6f2-e9cd7dc34730; session_id_ittest3=127.0.0.1-62b43052-ddbd-4338-9be0-66bfd3017a52</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_host</td><td valign="top">:</td><td><div>127.0.0.1:8000</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_referer</td><td valign="top">:</td><td><div>http://127.0.0.1:8000/ittest/default/suggestions</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">http_user_agent</td><td valign="top">:</td><td><div>Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:18.0) Gecko/20100101 Firefox/18.0</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">is_jython</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">is_pypy</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">local_hosts</td><td valign="top">:</td><td><div><table><tr><td><div>abhishek</div></td></tr><tr><td><div>::1</div></td></tr><tr><td><div>127.0.1.1</div></td></tr><tr><td><div>::ffff:127.0.0.1</div></td></tr><tr><td><div>127.0.0.1</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path_info</td><td valign="top">:</td><td><div>/ittest/default/display_paper/1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">query_string</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">remote_addr</td><td valign="top">:</td><td><div>127.0.0.1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">remote_port</td><td valign="top">:</td><td><div>34478</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">request_method</td><td valign="top">:</td><td><div>GET</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">request_uri</td><td valign="top">:</td><td><div>/ittest/default/display_paper/1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">script_name</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">server_name</td><td valign="top">:</td><td><div>abhishek</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">server_port</td><td valign="top">:</td><td><div>8000</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">server_protocol</td><td valign="top">:</td><td><div>HTTP/1.1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">server_software</td><td valign="top">:</td><td><div>Rocket 1.2.6</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">web2py_path</td><td valign="top">:</td><td><div>/home/abhishek/web2py</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">web2py_version</td><td valign="top">:</td><td><div>2.4.5-stable+timestamp.2013.03.18.22.46.22</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_errors</td><td valign="top">:</td><td><div>&lt;open file &#x27;&lt;stderr&gt;&#x27;, mode &#x27;w&#x27; at 0xb736f0d0&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_file_wrapper</td><td valign="top">:</td><td><div>&lt;class wsgiref.util.FileWrapper at 0x8fa52fc&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_input</td><td valign="top">:</td><td><div>&lt;socket._fileobject object at 0xafbbf0ec&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_multiprocess</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_multithread</td><td valign="top">:</td><td><div>True</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_run_once</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_url_scheme</td><td valign="top">:</td><td><div>http</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi_version</td><td valign="top">:</td><td><div><table><tr><td><div>1</div></td></tr><tr><td><div>0</div></td></tr></table></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">extension</td><td valign="top">:</td><td><div>html</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">folder</td><td valign="top">:</td><td><div>/home/abhishek/web2py/applications/ittest/</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">function</td><td valign="top">:</td><td><div>display_paper</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">get_vars</td><td valign="top">:</td><td><div><table></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">global_settings</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">app_folders</td><td valign="top">:</td><td><div>set([&#x27;/home/abhishek/web2py/applications/ittest/&#x27;, &#x27;/home/abhishek/web2py/applications/admin/&#x27;, &#x27;/home/abhishek/web2py/applications/welcome/&#x27;])</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">applications_parent</td><td valign="top">:</td><td><div>/home/abhishek/web2py</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">cmd_args</td><td valign="top">:</td><td><div><table></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">cmd_options</td><td valign="top">:</td><td><div>&lt;Values at 0x901d20c: {&#x27;verbose&#x27;: False, &#x27;ip&#x27;: &#x27;127.0.0.1&#x27;, &#x27;with_scheduler&#x27;: False, &#x27;ips&#x27;: [], &#x27;shutdown_timeout&#x27;: 5, &#x27;taskbar&#x27;: False, &#x27;port&#x27;: 8000, &#x27;maxthreads&#x27;: None, &#x27;softcron&#x27;: False, &#x27;server_name&#x27;: &#x27;abhishek&#x27;, &#x27;bpython&#x27;: False, &#x27;nogui&#x27;: False, &#x27;pid_filename&#x27;: &#x27;httpserver.pid&#x27;, &#x27;extcron&#x27;: False, &#x27;runcron&#x27;: False, &#x27;run_system_tests&#x27;: False, &#x27;test&#x27;: None, &#x27;folder&#x27;: &#x27;/home/abhishek/web2py&#x27;, &#x27;config&#x27;: &#x27;&#x27;, &#x27;import_models&#x27;: False, &#x27;winservice&#x27;: &#x27;&#x27;, &#x27;shell&#x27;: None, &#x27;run&#x27;: &#x27;&#x27;, &#x27;log_filename&#x27;: &#x27;httpserver.log&#x27;, &#x27;debuglevel&#x27;: 30, &#x27;args&#x27;: [&#x27;&#x27;], &#x27;socket_timeout&#x27;: 5, &#x27;ssl_ca_certificate&#x27;: None, &#x27;scheduler&#x27;: None, &#x27;profiler_filename&#x27;: None, &#x27;ssl_private_key&#x27;: &#x27;&#x27;, &#x27;scheduler_groups&#x27;: None, &#x27;password&#x27;: &#x27;1234&#x27;, &#x27;request_queue_size&#x27;: 5, &#x27;ssl_certificate&#x27;: &#x27;&#x27;, &#x27;cronjob&#x27;: False, &#x27;numthreads&#x27;: None, &#x27;quiet&#x27;: False, &#x27;interfaces&#x27;: None, &#x27;minthreads&#x27;: None, &#x27;timeout&#x27;: 10, &#x27;plain&#x27;: False, &#x27;nobanner&#x27;: False}&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">db_sessions</td><td valign="top">:</td><td><div>set([])</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">debugging</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">gluon_parent</td><td valign="top">:</td><td><div>/home/abhishek/web2py</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">is_jython</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">is_pypy</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">local_hosts</td><td valign="top">:</td><td><div><table><tr><td><div>abhishek</div></td></tr><tr><td><div>::1</div></td></tr><tr><td><div>127.0.1.1</div></td></tr><tr><td><div>::ffff:127.0.0.1</div></td></tr><tr><td><div>127.0.0.1</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">web2py_version</td><td valign="top">:</td><td><div>2.4.5-stable+timestamp.2013.03.18.22.46.22</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">is_https</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">is_local</td><td valign="top">:</td><td><div>True</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">is_restful</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">now</td><td valign="top">:</td><td><div>datetime.datetime(2013, 4, 8, 13, 11, 14, 676650)</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">post_vars</td><td valign="top">:</td><td><div><table></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">raw_args</td><td valign="top">:</td><td><div>1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">raw_extension</td><td valign="top">:</td><td><div>None</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">url</td><td valign="top">:</td><td><div>/ittest/default/display_paper/1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">utcnow</td><td valign="top">:</td><td><div>datetime.datetime(2013, 4, 8, 7, 41, 14, 676672)</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">uuid</td><td valign="top">:</td><td><div>ittest/127.0.0.1.2013-04-08.13-11-14.2541f9cc-fb97-41a0-ba10-08debfb3a2ba</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">vars</td><td valign="top">:</td><td><div><table></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">environ</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">HTTP_ACCEPT</td><td valign="top">:</td><td><div>text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">HTTP_ACCEPT_ENCODING</td><td valign="top">:</td><td><div>gzip, deflate</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">HTTP_ACCEPT_LANGUAGE</td><td valign="top">:</td><td><div>en-US,en;q=0.5</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">HTTP_CONNECTION</td><td valign="top">:</td><td><div>keep-alive</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">HTTP_COOKIE</td><td valign="top">:</td><td><div>session_id_welcome=127.0.0.1-611473d6-ae3f-4a45-9a99-2d75d05fdd37; session_id_admin=127.0.0.1-cdb2e97a-abb2-4365-ac0f-3b83db881305; session_id_yo=127.0.0.1-4d9e9841-34e3-43d8-aeb4-c79f5d44ede3; session_id_test1=127.0.0.1-3e0b66f8-dd6f-46b7-aa3b-fbe7990448a3; session_id_music=127.0.0.1-c45434fc-60e3-4971-9790-d7302b13402f; session_id_test=127.0.0.1-9e4d8fe0-7efd-47c4-aa43-21b508770f8f; session_id_testimage=127.0.0.1-3e1daab8-91d8-4dcc-bb19-a9877540978f; session_id_itws_project=127.0.0.1-66f9e680-f928-4ce8-934c-34faec6625a3; session_id_testg=127.0.0.1-ea273346-3693-4a24-b670-0b4da27abed9; session_id_quiz=127.0.0.1-001af907-d3f7-4cca-ad1f-324df1352ea6; session_id_it=127.0.0.1-6cc40b59-09a1-4442-a43b-5a025fb86aee; session_id_ittest=127.0.0.1-aaa78335-4629-4e30-b6f2-e9cd7dc34730; session_id_ittest3=127.0.0.1-62b43052-ddbd-4338-9be0-66bfd3017a52</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">HTTP_HOST</td><td valign="top">:</td><td><div>127.0.0.1:8000</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">HTTP_REFERER</td><td valign="top">:</td><td><div>http://127.0.0.1:8000/ittest/default/suggestions</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">HTTP_USER_AGENT</td><td valign="top">:</td><td><div>Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:18.0) Gecko/20100101 Firefox/18.0</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">PATH_INFO</td><td valign="top">:</td><td><div>/ittest/default/display_paper/1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">QUERY_STRING</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">REMOTE_ADDR</td><td valign="top">:</td><td><div>127.0.0.1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">REMOTE_PORT</td><td valign="top">:</td><td><div>34478</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">REQUEST_METHOD</td><td valign="top">:</td><td><div>GET</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">REQUEST_URI</td><td valign="top">:</td><td><div>/ittest/default/display_paper/1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">SCRIPT_NAME</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">SERVER_NAME</td><td valign="top">:</td><td><div>abhishek</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">SERVER_PORT</td><td valign="top">:</td><td><div>8000</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">SERVER_PROTOCOL</td><td valign="top">:</td><td><div>HTTP/1.1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">SERVER_SOFTWARE</td><td valign="top">:</td><td><div>Rocket 1.2.6</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.errors</td><td valign="top">:</td><td><div>&lt;open file &#x27;&lt;stderr&gt;&#x27;, mode &#x27;w&#x27; at 0xb736f0d0&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.file_wrapper</td><td valign="top">:</td><td><div>&lt;class wsgiref.util.FileWrapper at 0x8fa52fc&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.input</td><td valign="top">:</td><td><div>&lt;cStringIO.StringO object at 0xaf03d3a0&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.multiprocess</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.multithread</td><td valign="top">:</td><td><div>True</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.run_once</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.url_scheme</td><td valign="top">:</td><td><div>http</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">wsgi.version</td><td valign="top">:</td><td><div>1</div></td></tr></table></div></td></tr></table></div></td></tr></table></div>'
+tRp58
+sS'frames'
+p59
+(lp60
+(dp61
+S'file'
+p62
+S'/home/abhishek/web2py/gluon/restricted.py'
+p63
+sS'dump'
+p64
+(dp65
+S'environment'
+p66
+S"{'A': <class 'gluon.html.A'>, 'Auth': <class 'gluon.tools.Auth'>, 'B': <class 'gluon.html.B'>, 'BEAUTIFY': <class 'gluon.html.BEAUTIFY'>, 'BODY': <class 'gluon.html.BODY'>, 'BR': <class 'gluon.html.BR'>, 'BUTTON': <class 'gluon.html.BUTTON'>, 'CAT': <class 'gluon.html.CAT'>, 'CENTER': <class 'gluon.html.CENTER'>, 'CLEANUP': <class 'gluon.validators.CLEANUP'>, ...}"
+p67
+sS'ccode'
+p68
+S'<code object <module> at 0xafb29260, file "/home...ications/ittest/controllers/default.py", line 13>'
+p69
+ssS'lnum'
+p70
+I212
+sS'lines'
+p71
+(dp72
+I207
+S'    try:'
+p73
+sI208
+S'        if isinstance(code, types.CodeType):'
+p74
+sI209
+S'            ccode = code'
+p75
+sI210
+S'        else:'
+p76
+sI211
+S'            ccode = compile2(code, layer)'
+p77
+sI212
+S'        exec ccode in environment'
+p78
+sI213
+S'    except HTTP:'
+p79
+sI214
+S'        raise'
+p80
+sI215
+S'    except RestrictedError:'
+p81
+sI216
+S'        # do not encapsulate (obfuscate) the original RestrictedError'
+p82
+ssS'call'
+p83
+S"(code='# -*- coding: utf-8 -*-\\n# this file is released ...\\n\\nresponse._vars=response._caller(display_paper)\\n', environment={'A': <class 'gluon.html.A'>, 'Auth': <class 'gluon.tools.Auth'>, 'B': <class 'gluon.html.B'>, 'BEAUTIFY': <class 'gluon.html.BEAUTIFY'>, 'BODY': <class 'gluon.html.BODY'>, 'BR': <class 'gluon.html.BR'>, 'BUTTON': <class 'gluon.html.BUTTON'>, 'CAT': <class 'gluon.html.CAT'>, 'CENTER': <class 'gluon.html.CENTER'>, 'CLEANUP': <class 'gluon.validators.CLEANUP'>, ...}, layer='/home/abhishek/web2py/applications/ittest/controllers/default.py')"
+p84
+sS'func'
+p85
+S'restricted'
+p86
+sa(dp87
+g62
+S'/home/abhishek/web2py/applications/ittest/controllers/default.py'
+p88
+sg64
+(dp89
+sg70
+I460
+sg71
+(dp90
+I449
+S'def suggestions():'
+p91
+sI450
+S'\tr=db((db.sugesstion.reciever==auth.user.id)&(db.sugesstion.qptableid==db.qptable.id) &(db.sugesstion.sender==db.auth_user.id)).select(db.auth_user.username,db.auth_user.id,db.qptable.qpname,db.qptable.id)'
+p92
+sI451
+S'\treturn dict(r=r)'
+p93
+sI452
+S'def show_profile():'
+p94
+sI453
+S'\tq=request.args(0) or auth.user.id'
+p95
+sI454
+S'\tl=db(db.auth_user.id==q).select(db.auth_user.ALL).first()'
+p96
+sI455
+S'\timages=l.image'
+p97
+sI456
+S'\treturn dict(images=images,l=l)'
+p98
+sI457
+S'def download():'
+p99
+sI458
+S'\treturn response.download(request,db)'
+p100
+ssg83
+S'()'
+p101
+sg85
+S'<module>'
+p102
+sa(dp103
+g62
+S'/home/abhishek/web2py/gluon/globals.py'
+p104
+sg64
+(dp105
+S'self'
+p106
+S'undefined'
+p107
+sS'f'
+S'<function display_paper>'
+p108
+ssg70
+I194
+sg71
+(dp109
+I192
+S"        self.delimiters = ('{{', '}}')"
+p110
+sI193
+S'        self._vars = None'
+p111
+sI194
+S'        self._caller = lambda f: f()'
+p112
+sI195
+S'        self._view_environment = None'
+p113
+sI196
+S'        self._custom_commit = None'
+p114
+sI197
+S'        self._custom_rollback = None'
+p115
+sI198
+S''
+sI189
+S'        self.menu = []             # used by the default view layout'
+p116
+sI190
+S'        self.files = []            # used by web2py_ajax.html'
+p117
+sI191
+S'        self.generic_patterns = []  # patterns to allow generic views'
+p118
+ssg83
+S'(f=<function display_paper>)'
+p119
+sg85
+S'<lambda>'
+p120
+sa(dp121
+g62
+S'/home/abhishek/web2py/applications/ittest/controllers/default.py'
+p122
+sg64
+(dp123
+S'auth.user.id'
+p124
+g107
+sS'db.answer'
+p125
+S'<Table answer (id,studentid,qptableid,qnum,optionselected,marks)>'
+p126
+sS'k.qptableid'
+p127
+S'3'
+sS'auth.user'
+p128
+S'None'
+p129
+sS'db.answer.studentid'
+p130
+S'<gluon.dal.Field object>'
+p131
+sS'k'
+S"<Row {'negativemarks': 2, 'marks_for_each_questi... 'qptableid': 3, 'number_of_option': 2, 'id': 3}>"
+p132
+sS').select'
+p133
+g107
+sS'global auth'
+p134
+S'<gluon.tools.Auth object>'
+p135
+sS'global db'
+p136
+S'<DAL uri="sqlite://storage.sqlite">'
+p137
+sS'db.answer.qnum'
+p138
+S'<gluon.dal.Field object>'
+p139
+sS'y'
+g107
+sS'db.answer.qptableid'
+p140
+S'<gluon.dal.Field object>'
+p141
+ssg70
+I337
+sg71
+(dp142
+I332
+S"\t\tredirect(URL(r=request,f='result/%s' %(int(session.i[0].qptableid))))"
+p143
+sI333
+S'\tk=session.i[int(session.cnt)-1]'
+p144
+sI334
+S'\tans=db(db.qoptions.qname==k.id).select(db.qoptions.qoptions)'
+p145
+sI335
+S'\tr=[]'
+p146
+sI336
+S'\tl=len(ans)'
+p147
+sI337
+S'\ty=db((db.answer.studentid==auth.user.id)&(db.answer.qptableid==k.qptableid)).select(db.answer.qnum)'
+p148
+sI338
+S'\tlists=[]'
+p149
+sI339
+S'\tfor i in y:'
+p150
+sI340
+S'\t\tlists.append(i.qnum)'
+p151
+sI341
+S"\tprint lists,'i am i am'"
+p152
+ssg83
+S'()'
+p153
+sg85
+S'display_paper'
+p154
+sasS'pyver'
+p155
+S'Python 2.7.3: /usr/bin/python (prefix: /usr)'
+p156
+sS'session'
+p157
+g57
+(S's0\n\x00\x00<div><table><tr><td style="font-weight:bold;vertical-align:top">cnt</td><td valign="top">:</td><td><div>1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">flash</td><td valign="top">:</td><td><div>None</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">i</td><td valign="top">:</td><td><div><table><thead><tr><th>qtable.id</th><th>qtable.qptableid</th><th>qtable.qnumber</th><th>qtable.question</th><th>qtable.marks_for_each_question</th><th>qtable.negativemarks</th><th>qtable.number_of_option</th></tr></thead><tbody><tr class="even"><td>3</td><td>3</td><td>1</td><td>asdasd</td><td>2</td><td>2</td><td>2</td></tr><tr class="odd"><td>4</td><td>3</td><td>2</td><td>dddfs</td><td>2</td><td>2</td><td>2</td></tr></tbody></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">j</td><td valign="top">:</td><td><div>1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">k</td><td valign="top">:</td><td><div>11</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">l</td><td valign="top">:</td><td><div>12</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">last_orderby</td><td valign="top">:</td><td><div>None</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">last_query</td><td valign="top">:</td><td><div>db.auth_user.id&gt;0</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">no_of_question</td><td valign="top">:</td><td><div>2</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">op</td><td valign="top">:</td><td><div>1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">opt</td><td valign="top">:</td><td><div>1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">option</td><td valign="top">:</td><td><div><table><thead><tr><th>qoptions.qoptions</th></tr></thead><tbody><tr class="even"><td>alsdka</td></tr></tbody></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">q</td><td valign="top">:</td><td><div>12</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">q1</td><td valign="top">:</td><td><div>28</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">r</td><td valign="top">:</td><td><div>2</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">searchfaculty</td><td valign="top">:</td><td><div>1</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">searchtopic</td><td valign="top">:</td><td><div>wave</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">tmp</td><td valign="top">:</td><td><div>||</div></td></tr></table></div>'
+tRp158
+sS'etype'
+p159
+S"<type 'exceptions.AttributeError'>"
+p160
+sS'date'
+p161
+S'Mon Apr  8 13:11:15 2013'
+p162
+sS'response'
+p163
+g57
+(S's\x9b,\x00\x00<div><table><tr><td style="font-weight:bold;vertical-align:top">body</td><td valign="top">:</td><td><div>&lt;cStringIO.StringO object at 0x909de60&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">cookies</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">session_id_ittest</td><td valign="top">:</td><td><div>127.0.0.1-aaa78335-4629-4e30-b6f2-e9cd7dc34730<table><tr><td style="font-weight:bold;vertical-align:top">comment</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">domain</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">expires</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">httponly</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">max-age</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">path</td><td valign="top">:</td><td><div>/</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">secure</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">version</td><td valign="top">:</td><td><div></div></td></tr></table></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">delimiters</td><td valign="top">:</td><td><div><table><tr><td><div>{{</div></td></tr><tr><td><div>}}</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">files</td><td valign="top">:</td><td><div><table></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">flash</td><td valign="top">:</td><td><div></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">generic_patterns</td><td valign="top">:</td><td><div><table><tr><td><div>*</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">google_analytics_id</td><td valign="top">:</td><td><div>None</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">headers</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">X-Powered-By</td><td valign="top">:</td><td><div>web2py</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">logo</td><td valign="top">:</td><td><div><a class="brand" href="http://www.web2py.com/"><b>web<span>2</span>py</b>&trade;&nbsp;</a></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">menu</td><td valign="top">:</td><td><div><table><tr><td><div><table><tr><td><div>Home</div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>/ittest/default/index</div></td></tr><tr><td><div><table></table></div></td></tr></table></div></td></tr><tr><td><div><table><tr><td><div><span class="highlighted">web2py</span></div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>http://web2py.com</div></td></tr><tr><td><div><table><tr><td><div><table><tr><td><div>My Sites</div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>/admin/default/site</div></td></tr></table></div></td></tr><tr><td><div><table><tr><td><div>This App</div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>/admin/default/design/ittest</div></td></tr><tr><td><div>[(&lt;lazyT &#x27;Controller&#x27;&gt;, False, &#x27;/admin/default/edit/ittest/controllers/default.py&#x27;), (&lt;lazyT &#x27;View&#x27;&gt;, False, &#x27;/admin/default/edit/ittest/views/default/display_paper.html&#x27;), (&lt;lazyT &#x27;Layout&#x27;&gt;, False, &#x27;/admin/default/edit/ittest/views/layout.html&#x27;), (&lt;lazyT &#x27;Stylesheet&#x27;&gt;, False, &#x27;/admin/default/edit/ittest/static/css/web2py.css&#x27;), (&lt;lazyT &#x27;DB Model&#x27;&gt;, False, &#x27;/admin/default/edit/ittest/models/db.py&#x27;), (&lt;lazyT &#x27;Menu Model&#x27;&gt;, False, &#x27;/admin/default/edit/ittest/models/menu.py&#x27;), (&lt;lazyT &#x27;Database&#x27;&gt;, False, &#x27;/ittest/appadmin/index&#x27;), (&lt;lazyT &#x27;Errors&#x27;&gt;, False, &#x27;/admin/default/errors/ittest&#x27;), (&lt;lazyT &#x27;About&#x27;&gt;, False, &#x27;/admin/default/about/ittest&#x27;)]</div></td></tr></table></div></td></tr><tr><td><div><table><tr><td><div>web2py.com</div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>http://www.web2py.com</div></td></tr><tr><td><div>[(&lt;lazyT &#x27;Download&#x27;&gt;, False, &#x27;http://www.web2py.com/examples/default/download&#x27;), (&lt;lazyT &#x27;Support&#x27;&gt;, False, &#x27;http://www.web2py.com/examples/default/support&#x27;), (&lt;lazyT &#x27;Demo&#x27;&gt;, False, &#x27;http://web2py.com/demo_admin&#x27;), (&lt;lazyT &#x27;Quick Examples&#x27;&gt;, False, &#x27;http://web2py.com/examples/default/examples&#x27;), (&lt;lazyT &#x27;FAQ&#x27;&gt;, False, &#x27;http://web2py.com/AlterEgo&#x27;), (&lt;lazyT &#x27;Videos&#x27;&gt;, False, &#x27;http://www.web2py.com/examples/default/videos/&#x27;), (&lt;lazyT &#x27;Free Applications&#x27;&gt;, False, &#x27;http://web2py.com/appliances&#x27;), (&lt;lazyT &#x27;Plugins&#x27;&gt;, False, &#x27;http://web2py.com/plugins&#x27;), (&lt;lazyT &#x27;Layouts&#x27;&gt;, False, &#x27;http://web2py.com/layouts&#x27;), (&lt;lazyT &#x27;Recipes&#x27;&gt;, False, &#x27;http://web2pyslices.com/&#x27;), (&lt;lazyT &#x27;Semantic&#x27;&gt;, False, &#x27;http://web2py.com/semantic&#x27;)]</div></td></tr></table></div></td></tr><tr><td><div><table><tr><td><div>Documentation</div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>http://www.web2py.com/book</div></td></tr><tr><td><div>[(&lt;lazyT &#x27;Preface&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/00&#x27;), (&lt;lazyT &#x27;Introduction&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/01&#x27;), (&lt;lazyT &#x27;Python&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/02&#x27;), (&lt;lazyT &#x27;Overview&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/03&#x27;), (&lt;lazyT &#x27;The Core&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/04&#x27;), (&lt;lazyT &#x27;The Views&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/05&#x27;), (&lt;lazyT &#x27;Database&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/06&#x27;), (&lt;lazyT &#x27;Forms and Validators&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/07&#x27;), (&lt;lazyT &#x27;Email and SMS&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/08&#x27;), (&lt;lazyT &#x27;Access Control&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/09&#x27;), (&lt;lazyT &#x27;Services&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/10&#x27;), (&lt;lazyT &#x27;Ajax Recipes&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/11&#x27;), (&lt;lazyT &#x27;Components and Plugins&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/12&#x27;), (&lt;lazyT &#x27;Deployment Recipes&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/13&#x27;), (&lt;lazyT &#x27;Other Recipes&#x27;&gt;, False, &#x27;http://www.web2py.com/book/default/chapter/14&#x27;), (&lt;lazyT &#x27;Buy this book&#x27;&gt;, False, &#x27;http://stores.lulu.com/web2py&#x27;)]</div></td></tr></table></div></td></tr><tr><td><div><table><tr><td><div>Community</div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>None</div></td></tr><tr><td><div>[(&lt;lazyT &#x27;Groups&#x27;&gt;, False, &#x27;http://www.web2py.com/examples/default/usergroups&#x27;), (&lt;lazyT &#x27;Twitter&#x27;&gt;, False, &#x27;http://twitter.com/web2py&#x27;), (&lt;lazyT &#x27;Live Chat&#x27;&gt;, False, &#x27;http://webchat.freenode.net/?channels=web2py&#x27;)]</div></td></tr></table></div></td></tr><tr><td><div><table><tr><td><div>Plugins</div></td></tr><tr><td><div>False</div></td></tr><tr><td><div>None</div></td></tr><tr><td><div>[(&#x27;plugin_wiki&#x27;, False, &#x27;http://web2py.com/examples/default/download&#x27;), (&lt;lazyT &#x27;Other Plugins&#x27;&gt;, False, &#x27;http://web2py.com/plugins&#x27;), (&lt;lazyT &#x27;Layout Plugins&#x27;&gt;, False, &#x27;http://web2py.com/layouts&#x27;)]</div></td></tr></table></div></td></tr></table></div></td></tr></table></div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">meta</td><td valign="top">:</td><td><div><table><tr><td style="font-weight:bold;vertical-align:top">author</td><td valign="top">:</td><td><div>Your Name &lt;you@example.com&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">description</td><td valign="top">:</td><td><div>a cool new app</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">generator</td><td valign="top">:</td><td><div>Web2py Web Framework</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">keywords</td><td valign="top">:</td><td><div>web2py, python, framework</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">models_to_run</td><td valign="top">:</td><td><div><table><tr><td><div>^\\w+\\.py$</div></td></tr><tr><td><div>^default/\\w+\\.py$</div></td></tr><tr><td><div>^default/display_paper/\\w+\\.py$</div></td></tr></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">postprocessing</td><td valign="top">:</td><td><div><table></table></div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_cookie_expires</td><td valign="top">:</td><td><div>None</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_data_name</td><td valign="top">:</td><td><div>session_data_ittest</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_file</td><td valign="top">:</td><td><div>&lt;open file &#x27;/home/abhishek/web2py/applications/ittest/sessions/127.0.0.1-aaa78335-4629-4e30-b6f2-e9cd7dc34730&#x27;, mode &#x27;rb+&#x27; at 0xaf901c28&gt;</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_filename</td><td valign="top">:</td><td><div>/home/abhishek/web2py/applications/ittest/sessions/127.0.0.1-aaa78335-4629-4e30-b6f2-e9cd7dc34730</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id</td><td valign="top">:</td><td><div>127.0.0.1-aaa78335-4629-4e30-b6f2-e9cd7dc34730</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_id_name</td><td valign="top">:</td><td><div>session_id_ittest</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_locked</td><td valign="top">:</td><td><div>True</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_new</td><td valign="top">:</td><td><div>False</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">session_storage_type</td><td valign="top">:</td><td><div>file</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">status</td><td valign="top">:</td><td><div>200</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">subtitle</td><td valign="top">:</td><td><div>customize me!</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">title</td><td valign="top">:</td><td><div>Ittest</div></td></tr><tr><td style="font-weight:bold;vertical-align:top">view</td><td valign="top">:</td><td><div>default/display_paper.html</div></td></tr></table></div>'
+tRp164
+sS'locals'
+p165
+(dp166
+S'k'
+S"<Row {'negativemarks': 2, 'marks_for_each_questi... 'qptableid': 3, 'number_of_option': 2, 'id': 3}>"
+p167
+sS'r'
+S'[]'
+p168
+sS'l'
+S'2'
+sS'ans'
+p169
+S'<Rows (2)>'
+p170
+sssS'traceback'
+p171
+S'Traceback (most recent call last):\n  File "/home/abhishek/web2py/gluon/restricted.py", line 212, in restricted\n    exec ccode in environment\n  File "/home/abhishek/web2py/applications/ittest/controllers/default.py", line 460, in <module>\n  File "/home/abhishek/web2py/gluon/globals.py", line 194, in <lambda>\n    self._caller = lambda f: f()\n  File "/home/abhishek/web2py/applications/ittest/controllers/default.py", line 337, in display_paper\n    y=db((db.answer.studentid==auth.user.id)&(db.answer.qptableid==k.qptableid)).select(db.answer.qnum)\nAttributeError: \'NoneType\' object has no attribute \'id\'\n'
+p172
+s.

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+{{extend 'layout.html'}}
+{{=form}}
+<style>
+	h4.pos_top
+	{
+	position:absolute;
+	top:185px;
+	right:200px;
+}
+</style>
+<h4 class="pos_top">
+	<div align="right">
+	<table border="4">
+	{{for i in range(1,6):}}
+		<tr>
+			{{for j in range(i,nofq+1):}}
+				{{if j%5==i and lists.count(str(j))!=0:}}
+				<td style="background-color:yellow">{{=A(j,_href=URL("display_paper",args=j))}}</td>
+				{{pass}}
+				{{if j%5==i and lists.count(str(j))==0:}}
+					<td style="background-color:white">{{=A(j,_href=URL("display_paper",args=j))}}</td>
+				{{pass}}
+				{{if i%5==0 and j%5==0 and lists.count(str(j))!=0:}}		
+					<td style="background-color:yellow">{{=A(j,_href=URL("display_paper",args=j))}}</td>
+				{{pass}}
+				{{if i%5==0 and j%5==0 and lists.count(str(j))==0:}}		
+					<td style="background-color:white">{{=A(j,_href=URL("display_paper",args=j))}}</td>
+				{{pass}}
+				
+			{{pass}}
+		</tr>
+	{{pass}}
+</table>
+</div>
+</h4>

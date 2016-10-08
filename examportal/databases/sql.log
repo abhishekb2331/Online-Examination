@@ -1,0 +1,144 @@
+timestamp: 2013-03-23T23:45:56.176249
+CREATE TABLE auth_user(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name CHAR(128),
+    last_name CHAR(128),
+    email CHAR(512),
+    username CHAR(128),
+    password CHAR(512),
+    registration_key CHAR(512),
+    reset_password_key CHAR(512),
+    registration_id CHAR(512),
+    profession CHAR(512),
+    qualification CHAR(512),
+    phonenumber CHAR(512)
+);
+success!
+timestamp: 2013-03-23T23:45:56.232367
+CREATE TABLE auth_group(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role CHAR(512),
+    description TEXT
+);
+success!
+timestamp: 2013-03-23T23:45:56.259031
+CREATE TABLE auth_membership(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES auth_user (id) ON DELETE CASCADE,
+    group_id INTEGER REFERENCES auth_group (id) ON DELETE CASCADE
+);
+success!
+timestamp: 2013-03-23T23:45:56.267898
+CREATE TABLE auth_permission(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER REFERENCES auth_group (id) ON DELETE CASCADE,
+    name CHAR(512),
+    table_name CHAR(512),
+    record_id INTEGER
+);
+success!
+timestamp: 2013-03-23T23:45:56.287361
+CREATE TABLE auth_event(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    time_stamp TIMESTAMP,
+    client_ip CHAR(512),
+    user_id INTEGER REFERENCES auth_user (id) ON DELETE CASCADE,
+    origin CHAR(512),
+    description TEXT
+);
+success!
+timestamp: 2013-03-23T23:45:56.317500
+CREATE TABLE auth_cas(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES auth_user (id) ON DELETE CASCADE,
+    created_on TIMESTAMP,
+    service CHAR(512),
+    ticket CHAR(512),
+    renew CHAR(1)
+);
+success!
+timestamp: 2013-03-23T23:45:56.327021
+CREATE TABLE course(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name CHAR(512) NOT NULL
+);
+success!
+timestamp: 2013-03-23T23:45:56.335223
+CREATE TABLE facultycourse(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    facultyid INTEGER REFERENCES auth_user (id) ON DELETE CASCADE,
+    courseid INTEGER REFERENCES course (id) ON DELETE CASCADE
+);
+success!
+timestamp: 2013-03-23T23:45:56.371049
+CREATE TABLE qptable(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    facultyid INTEGER REFERENCES auth_user (id) ON DELETE CASCADE,
+    topic CHAR(512) NOT NULL,
+    qpname CHAR(512) NOT NULL,
+    no_of_question CHAR(512) NOT NULL,
+    comments CHAR(512)
+);
+success!
+timestamp: 2013-03-23T23:45:56.383928
+CREATE TABLE qtable(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    qptableid INTEGER REFERENCES qptable (id) ON DELETE CASCADE,
+    qnumber INTEGER NOT NULL,
+    question CHAR(512) NOT NULL,
+    marks_for_each_question INTEGER,
+    negativemarks INTEGER,
+    number_of_option INTEGER
+);
+success!
+timestamp: 2013-03-23T23:45:56.394739
+CREATE TABLE qoptions(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    qoptions CHAR(512),
+    qoption_num CHAR(512),
+    qname INTEGER REFERENCES qtable (id) ON DELETE CASCADE
+);
+success!
+timestamp: 2013-03-23T23:45:56.400602
+CREATE TABLE correctoptions(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name INTEGER REFERENCES qoptions (id) ON DELETE CASCADE,
+    qtable INTEGER REFERENCES qtable (id) ON DELETE CASCADE
+);
+success!
+timestamp: 2013-03-24T12:37:09.958805
+ALTER TABLE qtable ADD correct_option CHAR(512);
+timestamp: 2013-03-28T17:12:36.228595
+CREATE TABLE answer(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    studentid CHAR(512),
+    qptableid CHAR(512),
+    qnum CHAR(512),
+    optionselected CHAR(512),
+    marks CHAR(512)
+);
+success!
+timestamp: 2013-03-28T17:12:36.250610
+CREATE TABLE marks(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    studentid CHAR(512),
+    qptableid CHAR(512),
+    marks CHAR(512)
+);
+success!
+timestamp: 2013-04-03T18:32:19.325607
+CREATE TABLE sugesstion(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    qptableid INTEGER REFERENCES qptable (id) ON DELETE CASCADE,
+    sender INTEGER REFERENCES auth_user (id) ON DELETE CASCADE,
+    reciever INTEGER REFERENCES auth_user (id) ON DELETE CASCADE
+);
+success!
+timestamp: 2013-04-05T13:03:40.996322
+ALTER TABLE auth_user ADD about_you TEXT;
+timestamp: 2013-04-05T13:08:07.032366
+ALTER TABLE auth_user ADD image CHAR(512) UNIQUE;
+timestamp: 2013-04-05T13:09:24.671863
+ALTER TABLE auth_user ADD image CHAR(512) UNIQUE;
+timestamp: 2013-04-05T13:11:13.378081
+ALTER TABLE auth_user ADD image CHAR(512);

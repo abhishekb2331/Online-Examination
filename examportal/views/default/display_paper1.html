@@ -1,0 +1,6 @@
+{{extend 'layout.html'}}
+<h4>Q{{=k.qnumber}}. {{=k.question}}</h4>
+{{for i in ans:}}
+{{=i.qoption_num}}) {{=i.qoptions}} <br \>
+{{pass}}
+{{=form}}

@@ -1,0 +1,12 @@
+{{extend 'layout.html'}}
+<div align="right">
+<img width="300px" src="{{=URL('download', args=images)}}" />
+<h2>{{=l['username']}}</h2></div>
+<ul>
+	<h3><li>Name : {{=l['first_name']}} {{=l['last_name']}}</li></h3>
+	<h3><li>Email : {{=l['email']}}</li></h3>
+	<h3><li>Profession : {{=l['profession']}}</li></h3>
+	<h3><li>Qualification : {{=l['qualification']}}</li></h3>
+	<h3><li>Phone Number : {{=l['phonenumber']}}</li></h3>
+	<h3><li>About {{=l['username']}} : {{=l['about_you']}}</li></h3>
+</ul>
